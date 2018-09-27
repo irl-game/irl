@@ -1,0 +1,16 @@
+[[library]]
+type="file"
+name="net"
+path="../net"
+includes=[
+  "net/conn.hpp",
+  "net/server.hpp"
+]
+
+[[library]]
+type="file"
+name="sched"
+path="../sched"
+includes=[
+  "sched/sched.hpp"
+]
