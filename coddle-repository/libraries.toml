@@ -14,3 +14,11 @@ path="../sched"
 includes=[
   "sched/sched.hpp"
 ]
+
+[[library]]
+type="file"
+name="ser"
+path="../ser"
+includes=[
+  "ser/ser.hpp"
+]

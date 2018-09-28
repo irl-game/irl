@@ -1,11 +1,9 @@
 #!/bin/bash
-cd server
-echo Entering directory \`server\'
-coddle
-echo Leaving directory \`server\'
-cd ..
-cd client
-echo Entering directory \`client\'
-coddle
-echo Leaving directory \`client\'
-cd ..
+
+for bin in server client test; do
+    cd $bin
+    echo Entering directory \`$bin\'
+    coddle
+    echo Leaving directory \`$bin\'
+    cd ..
+done
