@@ -20,5 +20,14 @@ type="file"
 name="ser"
 path="../ser"
 includes=[
-  "ser/ser.hpp"
+  "ser/ser.hpp",
+  "ser/proto.hpp"
+]
+
+[[library]]
+type="file"
+name="proto"
+path="../proto"
+includes=[
+  "proto/proto.hpp"
 ]
