@@ -1,0 +1,18 @@
+[submodule "client"]
+	path = client
+	url = git@github.com:irl-game/client.git
+[submodule "net"]
+	path = net
+	url = git@github.com:irl-game/net.git
+[submodule "sched"]
+	path = sched
+	url = git@github.com:irl-game/sched.git
+[submodule "ser"]
+	path = ser
+	url = git@github.com:irl-game/ser.git
+[submodule "server"]
+	path = server
+	url = git@github.com:irl-game/server.git
+[submodule "test"]
+	path = test
+	url = git@github.com:irl-game/test.git
