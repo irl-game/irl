@@ -4,7 +4,8 @@ name="net"
 path="../net"
 includes=[
   "net/conn.hpp",
-  "net/server.hpp"
+  "net/server.hpp",
+  "net/rsa_key.hpp"
 ]
 
 [[library]]
