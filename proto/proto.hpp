@@ -4,21 +4,15 @@
 struct Version
 {
   uint32_t value{};
-  template <typename Arch>
-  void ser(Arch &arch)
-  {
-    arch &value;
-  }
+  void ser(Ser &arch) const { arch << value; }
+  void deser(Deser &arch) { arch >> value; }
 };
 
 struct Message
 {
   std::string msg;
-  template <typename Arch>
-  void ser(Arch &arch)
-  {
-    arch &msg;
-  }
+  void ser(Ser &arch) const { arch << msg; }
+  void deser(Deser &arch) { arch >> msg; }
 };
 
 using SimProto = Proto<Version, Message>;
