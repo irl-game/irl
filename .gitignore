@@ -1,1 +1,5 @@
 *~
+.coddle
+/client/client
+/server/server
+/test/test
