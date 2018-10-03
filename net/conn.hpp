@@ -2,16 +2,20 @@
 #include "rsa_key.hpp"
 #include <array>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <uv.h>
 #include <vector>
-#define LTM_DESC
-#include <tomcrypt.h>
 
 class Sched;
 namespace Net
 {
+  namespace internal
+  {
+    struct Conn;
+  }
+
   class Conn
   {
   public:
@@ -29,10 +33,8 @@ namespace Net
     std::reference_wrapper<Sched> sched;
     uv_tcp_t socket{};
     uv_connect_t connect{};
-    rsa_key rsaKey{};
     std::optional<std::array<unsigned char, 256 / 8>> key{};
-    chacha_state chachaRecv{};
-    chacha_state chachaSend{};
+    std::unique_ptr<internal::Conn> internal{};
     std::vector<char> inBuff{};
     std::vector<char> outBuff{};
     std::vector<char> packet{};

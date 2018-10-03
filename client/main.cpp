@@ -1,57 +1,34 @@
-#include "public_key.hpp"
-#include <log/log.hpp>
-#include <net/conn.hpp>
-#include <proto/proto.hpp>
+#include "sim_conn.hpp"
 #include <sched/sched.hpp>
 #include <sdlpp/sdlpp.hpp>
-#include <ser/overloaded.hpp>
-#include <sstream>
-
+#include <shade/library.hpp>
+#include <shade/obj.hpp>
+#define GL_GLEXT_PROTOTYPES 1
+#include <SDL_opengl.h>
 int main()
 {
   sdl::Init init{SDL_INIT_EVERYTHING};
   const auto Width{1280};
   const auto Height{720};
-  sdl::Window wind("irl", 63, 126, Width, Height, 0);
-  sdl::Renderer rend(wind.get(), -1, 0);
+  sdl::Window win("irl", 63, 126, Width, Height, SDL_WINDOW_OPENGL);
+  sdl::Renderer rend(win.get(), -1, 0);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   sdl::EventHandler ev;
   auto done{false};
   ev.quit = [&done](const SDL_QuitEvent &) { done = true; };
-  Sched sched;
-  Net::Conn conn(sched, PublicKey, "127.0.0.1", 1025);
-  auto send = [&conn](const auto &msg) -> void {
-    SimProto proto;
-    std::vector<char> buff;
-    OStrm strm{buff};
-    proto.ser(strm, msg);
-    conn.send(buff.data(), buff.size());
-  };
+  Library lib(rend.get());
+  auto bot = lib.getObj("bot");
 
-  conn.onConn = [&]() { LOG("Connected"); };
-  conn.onDisconn = [&done]() { done = true; };
-  conn.onRecv = [&done, &send](const char *data, size_t sz) {
-    SimProto proto;
-    IStrm strm(data, data + sz);
-    proto.deser(strm,
-                overloaded{
-                  [](const Message &value) { LOG(typeid(value).name(), value.msg); },
-                  [&done, &send](const Version &value) {
-                    LOG(typeid(value).name(), value.value);
-                    if (value.value != SimProto::version())
-                    {
-                      LOG("Version mismatch:", value.value, "!=", SimProto::version());
-                      done = true;
-                    }
-                    Message msg;
-                    msg.msg = "Hello from client to server!";
-                    send(msg);
-                  },
-                });
-  };
+  Sched sched;
+  SimConn conn(sched, "127.0.0.1", 1025);
 
   sched.regIdle([&]() {
     while (ev.poll())
       ;
+
+    rend.clear();
+    bot->draw();
     rend.present();
   });
 

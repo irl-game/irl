@@ -5,6 +5,8 @@
 #include <log/log.hpp>
 #include <sched/sched.hpp>
 #include <sstream>
+#define LTM_DESC
+#include <tomcrypt.h>
 
 template <typename Iter>
 static void dump(Iter b, Iter e)
@@ -21,8 +23,18 @@ static void dump(Iter b, Iter e)
 
 namespace Net
 {
+  namespace internal
+  {
+    struct Conn
+    {
+      rsa_key rsaKey{};
+      chacha_state chachaRecv{};
+      chacha_state chachaSend{};
+    };
+  }
+
   Conn::Conn(Sched &sched, const RsaPublicKey &publicKey, const std::string &host, int port)
-    : sched(sched)
+    : sched(sched), internal(std::make_unique<internal::Conn>())
   {
     importKey(publicKey.data(), publicKey.size());
     uv_tcp_init(&sched.loop, &socket);
@@ -50,7 +62,7 @@ namespace Net
   Conn::Conn(Sched &sched,
              const RsaPrivateKey &privateKey,
              std::function<int(uv_stream_t &)> &&accept)
-    : sched(sched)
+    : sched(sched), internal(std::make_unique<internal::Conn>())
   {
     importKey(privateKey.data(), privateKey.size());
     uv_tcp_init(&sched.loop, &socket);
@@ -118,7 +130,7 @@ namespace Net
       }
     } rngHash;
 
-    auto err = rsa_import(key, keySize, &rsaKey);
+    auto err = rsa_import(key, keySize, &internal->rsaKey);
     if (err != CRYPT_OK)
     {
       std::cerr << "import rsa key error: " << error_to_string(err);
@@ -144,7 +156,7 @@ namespace Net
                               NULL,
                               prng_idx,
                               hash_idx,
-                              &rsaKey);
+                              &internal->rsaKey);
     if (err != CRYPT_OK)
     {
       LOG(this, "rsa_encrypt_key %s", error_to_string(err));
@@ -182,7 +194,7 @@ namespace Net
                               3,
                               hash_idx,
                               &err,
-                              &rsaKey);
+                              &internal->rsaKey);
     if (err != CRYPT_OK)
     {
       LOG(this, "rsa_decrypt_key", error_to_string(err));
@@ -206,7 +218,6 @@ namespace Net
   {
     if (nread == UV_EOF)
     {
-      LOG(this, "disconnected TODO destroy conn");
       if (onDisconn)
         onDisconn();
       return;
@@ -220,10 +231,10 @@ namespace Net
     if (key)
     {
       auto err =
-        chacha_crypt(&chachaRecv, (const unsigned char *)encBuff, nread, (unsigned char *)buff);
+        chacha_crypt(&internal->chachaRecv, (const unsigned char *)encBuff, nread, (unsigned char *)buff);
       if (err != CRYPT_OK)
       {
-        LOG(this, "TODO handle error:", err);
+        LOG(this, "Error:", err);
         disconn();
         return;
       }
@@ -243,23 +254,19 @@ namespace Net
         int32_t sz;
         if (nread - idx < static_cast<int>(sizeof(sz)))
         {
-          LOG(this,
-              "TODO disconnect. Other side of connection is misbehaving: ",
-              nread - idx,
-              "<",
-              sizeof(sz));
+          LOG(this, "Other side of connection is misbehaving: ", nread - idx, "<", sizeof(sz));
           disconn();
           return;
         }
         if (key && !isDecoded)
         {
-          auto err = chacha_crypt(&chachaRecv,
+          auto err = chacha_crypt(&internal->chachaRecv,
                                   (const unsigned char *)(buff + idx),
                                   nread - idx,
                                   (unsigned char *)(buff + idx));
           if (err != CRYPT_OK)
           {
-            LOG(this, "TODO handle error:", err);
+            LOG(this, "Error:", err);
             disconn();
             return;
           }
@@ -269,13 +276,13 @@ namespace Net
         idx += sizeof(sz);
         if (sz > 2 * 1024 * 1024)
         {
-          LOG(this, "TODO disconnect. Packed is too big:", sz);
+          LOG(this, "Packed is too big:", sz);
           disconn();
           return;
         }
         if (sz < 0)
         {
-          LOG(this, "TODO disconnect. Packed has negative size:", sz);
+          LOG(this, "Packed has negative size:", sz);
           disconn();
           return;
         }
@@ -310,10 +317,10 @@ namespace Net
   {
     assert(key);
     {
-      auto err = chacha_setup(&chachaSend, key->data(), key->size(), 20);
+      auto err = chacha_setup(&internal->chachaSend, key->data(), key->size(), 20);
       if (err != CRYPT_OK)
       {
-        LOG(this, "TODO handle error:", err);
+        LOG(this, "Error:", err);
         disconn();
         return;
       }
@@ -322,28 +329,28 @@ namespace Net
       for (int i = 0; i < 12; ++i)
         nonce[i] = i;
 
-      err = chacha_ivctr32(&chachaSend, nonce, 12, 0);
+      err = chacha_ivctr32(&internal->chachaSend, nonce, 12, 0);
       if (err != CRYPT_OK)
       {
-        LOG(this, "TODO handle error:", err);
+        LOG(this, "Error:", err);
         disconn();
         return;
       }
     }
     {
-      auto err = chacha_setup(&chachaRecv, key->data(), key->size(), 20);
+      auto err = chacha_setup(&internal->chachaRecv, key->data(), key->size(), 20);
       if (err != CRYPT_OK)
       {
-        LOG(this, "TODO handle error:", err);
+        LOG(this, "Error:", err);
         disconn();
         return;
       }
 
       std::array<unsigned char, 12> nonce = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-      err = chacha_ivctr32(&chachaRecv, nonce.data(), nonce.size(), 0);
+      err = chacha_ivctr32(&internal->chachaRecv, nonce.data(), nonce.size(), 0);
       if (err != CRYPT_OK)
       {
-        LOG(this, "TODO handle error:", err);
+        LOG(this, "Error:", err);
         disconn();
         return;
       }
@@ -358,13 +365,13 @@ namespace Net
     std::copy(buff, buff + size, std::begin(data) + sizeof(sz));
     dump(std::begin(data), std::end(data));
     outBuff.resize(data.size());
-    auto err = chacha_crypt(&chachaSend,
+    auto err = chacha_crypt(&internal->chachaSend,
                             (const unsigned char *)data.data(),
                             data.size(),
                             (unsigned char *)outBuff.data());
     if (err != CRYPT_OK)
     {
-      LOG(this, "TODO handle error:", err);
+      LOG(this, "Error:", err);
       disconn();
       return;
     }

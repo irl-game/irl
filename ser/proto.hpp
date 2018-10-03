@@ -4,7 +4,6 @@
 #include "ser.hpp"
 #include <array>
 #include <sstream>
-#include <tomcrypt.h>
 
 namespace internal
 {
@@ -42,6 +41,7 @@ namespace internal
     }
   };
 
+  auto calcMd5Hash(const char *data, const size_t size) -> uint32_t;
 } // namespace internal
 
 template <typename... Args>
@@ -93,15 +93,6 @@ private:
     std::vector<char> buff;
     OStrm strm(buff);
     internal::SerAllDefCtord<Args...>{}(strm);
-    hash_state md5;
-    md5_init(&md5);
-    md5_process(&md5, (const unsigned char *)buff.data(), buff.size());
-    union
-    {
-      std::array<unsigned char, 16> hash;
-      uint32_t res;
-    } hash;
-    md5_done(&md5, hash.hash.data());
-    return hash.res;
+    return internal::calcMd5Hash(buff.data(), buff.size());
   }
 };
