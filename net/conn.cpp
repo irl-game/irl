@@ -8,18 +8,25 @@
 #define LTM_DESC
 #include <tomcrypt.h>
 
+#if 0
 template <typename Iter>
 static void dump(Iter b, Iter e)
 {
   std::cout << std::setbase(16);
   int cnt{0};
   std::for_each(b, e, [&cnt](auto x) {
-    if (++cnt % 16 == 0)
+    if (cnt++ % 16 == 0)
       std::cout << std::endl;
     std::cout << std::setw(3) << (unsigned)(unsigned char)x;
   });
   std::cout << std::setbase(10) << std::endl;
 }
+#else
+template <typename Iter>
+static void dump(Iter, Iter)
+{
+}
+#endif
 
 namespace Net
 {
@@ -98,7 +105,7 @@ namespace Net
     auto err = uv_read_start((uv_stream_t *)&socket,
                              [](uv_handle_t *handle, size_t suggested_size, uv_buf_t *buff) {
                                auto conn = static_cast<Conn *>(handle->data);
-                               conn->inBuff.resize(suggested_size);
+                               conn->inBuff.resize(4096);
                                buff->base = conn->inBuff.data();
                                buff->len = std::min(conn->inBuff.size(), suggested_size);
                              },
@@ -222,10 +229,8 @@ namespace Net
         onDisconn();
       return;
     }
-    LOG(this, nread);
 
     char buff[4096];
-    LOG(this, "hasKey", key.has_value());
     auto isDecoded{false};
     dump(encBuff, encBuff + nread);
     if (key)
@@ -247,8 +252,6 @@ namespace Net
     int idx = 0;
     while (idx < nread)
     {
-      LOG("idx:", idx, "nread:", nread);
-      LOG("remining:", remining);
       if (remining == 0)
       {
         int32_t sz;
@@ -272,7 +275,6 @@ namespace Net
           }
         }
         sz = *(int32_t *)(&buff[idx]);
-        LOG(this, "Packet size:", sz);
         idx += sizeof(sz);
         if (sz > 2 * 1024 * 1024)
         {
@@ -290,6 +292,8 @@ namespace Net
         packet.clear();
       }
       auto tmpSz = std::min(remining, nread - idx);
+      if (tmpSz == 0)
+        break;
       auto tmpIdx = packet.size();
       packet.resize(packet.size() + tmpSz);
       std::copy(buff + idx, buff + idx + tmpSz, packet.data() + tmpIdx);
@@ -359,6 +363,8 @@ namespace Net
 
   auto Conn::send(const char *buff, size_t size) -> void
   {
+    if (isSending)
+      return;
     int32_t sz = size;
     std::vector<char> data(sizeof(sz) + size);
     std::copy((const char *)&sz, (const char *)&sz + sizeof(sz), std::begin(data));
@@ -379,10 +385,16 @@ namespace Net
     buffs[0].base = outBuff.data();
     buffs[0].len = outBuff.size();
     req.data = this;
-    LOG(this, "Sending packet, size: ", data.size());
     dump(std::begin(outBuff), std::end(outBuff));
+    isSending = true;
     uv_write(&req, (uv_stream_t *)&socket, buffs, 1, [](uv_write_t *req, int status) {
-      LOG("data sent", req->data, status);
+      auto conn = static_cast<Conn *>(req->data);
+      if (status != 0)
+      {
+        LOG("Sent error:", status);
+        conn->disconn();
+      }
+      conn->isSending = false;
     });
   }
 } // namespace Net

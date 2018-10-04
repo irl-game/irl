@@ -3,7 +3,7 @@
 for bin in server client test; do
     cd $bin
     echo Entering directory \`$bin\'
-    coddle
+    coddle debug
     echo Leaving directory \`$bin\'
     cd ..
 done

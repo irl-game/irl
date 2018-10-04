@@ -17,10 +17,15 @@ public:
     conn->send(sendBuff.data(), sendBuff.size());
   }
 
-  auto operator()(const Message &msg) const -> void;
+  void tick();
+
   auto operator()(const Version &msg) const -> void;
+  auto operator()(StartMove msg) -> void;
+  auto operator()(StopMove msg) -> void;
+  auto operator()(Pos msg) const -> void;
 
 private:
   std::vector<char> sendBuff;
   Net::Conn *conn{};
+  Pos pos;
 };

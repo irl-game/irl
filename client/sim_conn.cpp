@@ -17,17 +17,14 @@ SimConn::SimConn(Sched &sched, const std::string &addr, int port)
 
 SimConn::~SimConn() = default;
 
-auto SimConn::operator()(const Message &value) -> void
-{
-  LOG(typeid(value).name(), value.msg);
-}
-
 auto SimConn::operator()(const Version &value) -> void
 {
   LOG(typeid(value).name(), value.value);
   if (value.value != SimProto::version())
     LOG("Version mismatch:", value.value, "!=", SimProto::version());
-  Message msg;
-  msg.msg = "Hello from client to server!";
-  send(msg);
+}
+
+auto SimConn::operator()(Pos value) -> void
+{
+  pos = value;
 }

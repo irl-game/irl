@@ -40,6 +40,7 @@ namespace Net
     std::vector<char> packet{};
     int remining{0};
     uv_write_t req{};
+    bool isSending{false};
 
     auto readStart() -> void;
     auto sendRandKey() -> void;

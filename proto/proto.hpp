@@ -8,11 +8,15 @@ struct Version
   void deser(Deser &arch) { arch >> value; }
 };
 
-struct Message
+enum class StartMove : int32_t { Up, Right, Down, Left };
+enum class StopMove : int32_t { Up, Right, Down, Left };
+
+struct Pos
 {
-  std::string msg;
-  void ser(Ser &arch) const { arch << msg; }
-  void deser(Deser &arch) { arch >> msg; }
+  int32_t x{};
+  int32_t y{};
+  void ser(Ser &arch) const { arch << x << y; }
+  void deser(Deser &arch) { arch >> x >> y; }
 };
 
-using SimProto = Proto<Version, Message>;
+using SimProto = Proto<Version, StartMove, StopMove, Pos>;

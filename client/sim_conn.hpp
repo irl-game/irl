@@ -16,6 +16,8 @@ public:
   SimConn(Sched &, const std::string &addr, int port);
   ~SimConn();
 
+  Pos pos;
+
   template <typename T>
   auto send(const T &msg) -> void
   {
@@ -25,8 +27,10 @@ public:
     proto.ser(strm, msg);
     conn->send(buff.data(), buff.size());
   };
-  auto operator()(const Message &value) -> void;
   auto operator()(const Version &value) -> void;
+  auto operator()(StartMove) -> void {}
+  auto operator()(StopMove) -> void {}
+  auto operator()(Pos value) -> void;
 
 private:
   std::vector<char> buff;

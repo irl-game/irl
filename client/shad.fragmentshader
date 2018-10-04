@@ -1,0 +1,11 @@
+out vec4 color;
+in vec2 uv;
+in vec3 vNormal;
+uniform sampler2D tex;
+
+void main(){
+  float fDotProduct = max(0.0, dot(vNormal, vec3(.577, -.577, .577))) * 0.6;
+  vec3 rgb = texture(tex, uv).rgb;
+  float a = texture(tex, uv).a;
+  color = vec4(rgb * fDotProduct + rgb * 0.4, a);
+}
