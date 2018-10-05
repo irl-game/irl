@@ -38,7 +38,7 @@ namespace Net
       chacha_state chachaRecv{};
       chacha_state chachaSend{};
     };
-  }
+  } // namespace internal
 
   Conn::Conn(Sched &sched, const RsaPublicKey &publicKey, const std::string &host, int port)
     : sched(sched), internal(std::make_unique<internal::Conn>())
@@ -55,7 +55,7 @@ namespace Net
         Conn *conn = static_cast<Conn *>(req->data);
         if (status < 0)
         {
-          LOG("connect failed");
+          LOG("connect failed:", status);
           if (conn->onDisconn)
             conn->onDisconn();
           return;
@@ -73,10 +73,10 @@ namespace Net
   {
     importKey(privateKey.data(), privateKey.size());
     uv_tcp_init(&sched.loop, &socket);
-    auto r = accept((uv_stream_t &)socket);
+    const auto r = accept((uv_stream_t &)socket);
     if (r < 0)
     {
-      LOG(this, "accept ", r);
+      LOG(this, "accept error:", r);
       if (onDisconn)
         onDisconn();
       return;
@@ -102,19 +102,19 @@ namespace Net
   auto Conn::readStart() -> void
   {
     socket.data = this;
-    auto err = uv_read_start((uv_stream_t *)&socket,
-                             [](uv_handle_t *handle, size_t suggested_size, uv_buf_t *buff) {
-                               auto conn = static_cast<Conn *>(handle->data);
-                               conn->inBuff.resize(4096);
-                               buff->base = conn->inBuff.data();
-                               buff->len = std::min(conn->inBuff.size(), suggested_size);
-                             },
-                             [](uv_stream_t *stream, ssize_t nread, const uv_buf_t *buff) {
-                               auto conn = static_cast<Conn *>(stream->data);
-                               conn->onRead(nread, buff->base);
-                             });
+    const auto err = uv_read_start((uv_stream_t *)&socket,
+                                   [](uv_handle_t *handle, size_t suggested_size, uv_buf_t *buff) {
+                                     auto conn = static_cast<Conn *>(handle->data);
+                                     conn->inBuff.resize(4096);
+                                     buff->base = conn->inBuff.data();
+                                     buff->len = std::min(conn->inBuff.size(), suggested_size);
+                                   },
+                                   [](uv_stream_t *stream, ssize_t nread, const uv_buf_t *buff) {
+                                     auto conn = static_cast<Conn *>(stream->data);
+                                     conn->onRead(nread, buff->base);
+                                   });
     if (err < 0)
-      LOG(this, "uv_read_start error");
+      LOG(this, "uv_read_start error:", err);
   }
 
   auto Conn::importKey(const unsigned char *key, int keySize) -> void
@@ -137,33 +137,33 @@ namespace Net
       }
     } rngHash;
 
-    auto err = rsa_import(key, keySize, &internal->rsaKey);
+    const auto err = rsa_import(key, keySize, &internal->rsaKey);
     if (err != CRYPT_OK)
     {
-      std::cerr << "import rsa key error: " << error_to_string(err);
+      std::cerr << "import rsa key error:" << error_to_string(err);
       return;
     }
   }
 
   auto Conn::sendRandKey() -> void
   {
-    auto hash_idx = find_hash("sha1");
-    auto prng_idx = find_prng("sprng");
+    const auto hash_idx = find_hash("sha1");
+    const auto prng_idx = find_prng("sprng");
+    const std::string randKey = "TODO generate random key";
     key.emplace();
-    std::string randKey = "TODO generate random key";
     std::copy(std::begin(randKey), std::end(randKey), std::begin(*key));
     outBuff.resize(1024);
     unsigned long l1 = outBuff.size();
-    int err = rsa_encrypt_key(key->data(),
-                              key->size(),
-                              (unsigned char *)outBuff.data(),
-                              &l1,
-                              (unsigned char *)"irl",
-                              3,
-                              NULL,
-                              prng_idx,
-                              hash_idx,
-                              &internal->rsaKey);
+    const auto err = rsa_encrypt_key(key->data(),
+                                     key->size(),
+                                     (unsigned char *)outBuff.data(),
+                                     &l1,
+                                     (unsigned char *)"irl",
+                                     3,
+                                     nullptr,
+                                     prng_idx,
+                                     hash_idx,
+                                     &internal->rsaKey);
     if (err != CRYPT_OK)
     {
       LOG(this, "rsa_encrypt_key %s", error_to_string(err));
@@ -173,7 +173,7 @@ namespace Net
 
     req.data = this;
     uv_buf_t buffs[2];
-    int32_t sz = outBuff.size();
+    const int32_t sz = outBuff.size();
     buffs[0].base = (char *)&sz;
     buffs[0].len = sizeof(sz);
     LOG(this, "message size", sz);
@@ -193,18 +193,26 @@ namespace Net
     const auto hash_idx = find_hash("sha1");
     key.emplace();
     unsigned long l1 = sizeof(*key);
-    int err = rsa_decrypt_key((unsigned char *)packet.data(),
-                              packet.size(),
-                              key->data(),
-                              &l1,
-                              (unsigned char *)"irl",
-                              3,
-                              hash_idx,
-                              &err,
-                              &internal->rsaKey);
+    int stat{0};
+    const auto err = rsa_decrypt_key((unsigned char *)packet.data(),
+                                     packet.size(),
+                                     key->data(),
+                                     &l1,
+                                     (unsigned char *)"irl",
+                                     3,
+                                     hash_idx,
+                                     &stat,
+                                     &internal->rsaKey);
     if (err != CRYPT_OK)
     {
-      LOG(this, "rsa_decrypt_key", error_to_string(err));
+      LOG(this, "rsa_decrypt_key:", error_to_string(err));
+      disconn();
+      return;
+    }
+    if (stat == 0)
+    {
+      LOG(this, "rsa_decrypt_key: invalid key");
+      disconn();
       return;
     }
     LOG(this, "key is: ", std::string(std::begin(*key), std::end(*key)));
@@ -235,11 +243,11 @@ namespace Net
     dump(encBuff, encBuff + nread);
     if (key)
     {
-      auto err =
-        chacha_crypt(&internal->chachaRecv, (const unsigned char *)encBuff, nread, (unsigned char *)buff);
+      auto err = chacha_crypt(
+        &internal->chachaRecv, (const unsigned char *)encBuff, nread, (unsigned char *)buff);
       if (err != CRYPT_OK)
       {
-        LOG(this, "Error:", err);
+        LOG(this, "Error:", error_to_string(err));
         disconn();
         return;
       }
@@ -254,27 +262,26 @@ namespace Net
     {
       if (remining == 0)
       {
-        int32_t sz;
-        if (nread - idx < static_cast<int>(sizeof(sz)))
+        if (nread - idx < static_cast<int>(sizeof(int32_t)))
         {
-          LOG(this, "Other side of connection is misbehaving: ", nread - idx, "<", sizeof(sz));
+          LOG(this, "Other side of connection is misbehaving:", nread - idx, "<", sizeof(int32_t));
           disconn();
           return;
         }
         if (key && !isDecoded)
         {
-          auto err = chacha_crypt(&internal->chachaRecv,
-                                  (const unsigned char *)(buff + idx),
-                                  nread - idx,
-                                  (unsigned char *)(buff + idx));
+          const auto err = chacha_crypt(&internal->chachaRecv,
+                                        (const unsigned char *)(buff + idx),
+                                        nread - idx,
+                                        (unsigned char *)(buff + idx));
           if (err != CRYPT_OK)
           {
-            LOG(this, "Error:", err);
+            LOG(this, "Error:", error_to_string(err));
             disconn();
             return;
           }
         }
-        sz = *(int32_t *)(&buff[idx]);
+        int32_t sz = *(int32_t *)(&buff[idx]);
         idx += sizeof(sz);
         if (sz > 2 * 1024 * 1024)
         {
@@ -291,10 +298,10 @@ namespace Net
         remining = sz;
         packet.clear();
       }
-      auto tmpSz = std::min(remining, nread - idx);
+      const auto tmpSz = std::min(remining, nread - idx);
       if (tmpSz == 0)
         break;
-      auto tmpIdx = packet.size();
+      const auto tmpIdx = packet.size();
       packet.resize(packet.size() + tmpSz);
       std::copy(buff + idx, buff + idx + tmpSz, packet.data() + tmpIdx);
       idx += tmpSz;
@@ -308,11 +315,8 @@ namespace Net
           if (onConn)
             onConn();
         }
-        else
-        {
-          if (onRecv)
-            onRecv(packet.data(), packet.size());
-        }
+        else if (onRecv)
+          onRecv(packet.data(), packet.size());
       }
     }
   }
@@ -320,64 +324,48 @@ namespace Net
   auto Conn::setupChacha() -> void
   {
     assert(key);
-    {
-      auto err = chacha_setup(&internal->chachaSend, key->data(), key->size(), 20);
-      if (err != CRYPT_OK)
+    auto setup = [&](chacha_state &chacha) {
       {
-        LOG(this, "Error:", err);
-        disconn();
-        return;
+        const auto err = chacha_setup(&chacha, key->data(), key->size(), 20);
+        if (err != CRYPT_OK)
+        {
+          LOG("Setup chacha error:", error_to_string(err));
+          disconn();
+          return;
+        }
       }
-
-      unsigned char nonce[12];
-      for (int i = 0; i < 12; ++i)
-        nonce[i] = i;
-
-      err = chacha_ivctr32(&internal->chachaSend, nonce, 12, 0);
-      if (err != CRYPT_OK)
       {
-        LOG(this, "Error:", err);
-        disconn();
-        return;
+        const std::array<unsigned char, 12> nonce = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+        const auto err = chacha_ivctr32(&chacha, nonce.data(), nonce.size(), 0);
+        if (err != CRYPT_OK)
+        {
+          LOG("Setup chacha error:", error_to_string(err));
+          disconn();
+          return;
+        }
       }
-    }
-    {
-      auto err = chacha_setup(&internal->chachaRecv, key->data(), key->size(), 20);
-      if (err != CRYPT_OK)
-      {
-        LOG(this, "Error:", err);
-        disconn();
-        return;
-      }
-
-      std::array<unsigned char, 12> nonce = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-      err = chacha_ivctr32(&internal->chachaRecv, nonce.data(), nonce.size(), 0);
-      if (err != CRYPT_OK)
-      {
-        LOG(this, "Error:", err);
-        disconn();
-        return;
-      }
-    }
+    };
+    setup(internal->chachaSend);
+    setup(internal->chachaRecv);
   }
 
   auto Conn::send(const char *buff, size_t size) -> void
   {
     if (isSending)
       return;
-    int32_t sz = size;
-    std::vector<char> data(sizeof(sz) + size);
-    std::copy((const char *)&sz, (const char *)&sz + sizeof(sz), std::begin(data));
-    std::copy(buff, buff + size, std::begin(data) + sizeof(sz));
-    dump(std::begin(data), std::end(data));
-    outBuff.resize(data.size());
-    auto err = chacha_crypt(&internal->chachaSend,
-                            (const unsigned char *)data.data(),
-                            data.size(),
-                            (unsigned char *)outBuff.data());
+    const int32_t sz = size;
+    tmpBuff.resize(sizeof(sz) + size);
+    std::copy((const char *)&sz, (const char *)&sz + sizeof(sz), std::begin(tmpBuff));
+    std::copy(buff, buff + size, std::begin(tmpBuff) + sizeof(sz));
+    dump(std::begin(tmpBuff), std::end(tmpBuff));
+    outBuff.resize(tmpBuff.size());
+    const auto err = chacha_crypt(&internal->chachaSend,
+                                  (const unsigned char *)tmpBuff.data(),
+                                  tmpBuff.size(),
+                                  (unsigned char *)outBuff.data());
     if (err != CRYPT_OK)
     {
-      LOG(this, "Error:", err);
+      LOG(this, "Error:", error_to_string(err));
       disconn();
       return;
     }

@@ -7,7 +7,7 @@ namespace Net
 {
   Server::Server(Sched &sched,
                  const RsaPrivateKey &privateKey,
-                 int port,
+                 const int port,
                  std::function<void(Conn *)> &&onConn)
     : sched(&sched), privateKey(&privateKey), onConn(std::move(onConn))
   {
@@ -17,7 +17,7 @@ namespace Net
     uv_ip4_addr("0.0.0.0", port, &addr);
 
     uv_tcp_bind(&server, (const struct sockaddr *)&addr, 0);
-    int r = uv_listen((uv_stream_t *)&server, 5, [](uv_stream_t *server, int status) {
+    const auto r = uv_listen((uv_stream_t *)&server, 5, [](uv_stream_t *server, int status) {
       static_cast<Server *>(server->data)->onNewConn(status);
     });
     if (r)
@@ -29,7 +29,7 @@ namespace Net
 
   Server::~Server() {}
 
-  void Server::onNewConn(int status)
+  void Server::onNewConn(const int status)
   {
     LOG(__func__, status);
     if (status < 0)

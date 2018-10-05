@@ -16,7 +16,7 @@ public:
   SimConn(Sched &, const std::string &addr, int port);
   ~SimConn();
 
-  Pos pos;
+  World world;
 
   template <typename T>
   auto send(const T &msg) -> void
@@ -30,7 +30,8 @@ public:
   auto operator()(const Version &value) -> void;
   auto operator()(StartMove) -> void {}
   auto operator()(StopMove) -> void {}
-  auto operator()(Pos value) -> void;
+  auto operator()(MouseMove) -> void {}
+  auto operator()(World &&value) -> void;
 
 private:
   std::vector<char> buff;

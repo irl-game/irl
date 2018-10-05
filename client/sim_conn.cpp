@@ -24,7 +24,7 @@ auto SimConn::operator()(const Version &value) -> void
     LOG("Version mismatch:", value.value, "!=", SimProto::version());
 }
 
-auto SimConn::operator()(Pos value) -> void
+auto SimConn::operator()(World &&value) -> void
 {
-  pos = value;
+  world = value;
 }

@@ -37,6 +37,7 @@ namespace Net
     std::unique_ptr<internal::Conn> internal{};
     std::vector<char> inBuff{};
     std::vector<char> outBuff{};
+    std::vector<char> tmpBuff{};
     std::vector<char> packet{};
     int remining{0};
     uv_write_t req{};

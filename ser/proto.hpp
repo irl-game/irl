@@ -79,7 +79,7 @@ private:
       return deserById(idx + 1, strm, std::move(vis), msgId, tail...);
     Arg m;
     ::deser(strm, m);
-    vis(m);
+    vis(std::move(m));
   }
 
   template <typename Vis>

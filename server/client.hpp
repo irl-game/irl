@@ -22,10 +22,13 @@ public:
   auto operator()(const Version &msg) const -> void;
   auto operator()(StartMove msg) -> void;
   auto operator()(StopMove msg) -> void;
-  auto operator()(Pos msg) const -> void;
+  auto operator()(MouseMove msg) -> void;
+  auto operator()(const World &) const -> void {}
 
 private:
   std::vector<char> sendBuff;
   Net::Conn *conn{};
-  Pos pos;
+  World world;
+  enum class MoveFlag: unsigned { Up = 1 << 0, Right = 1 << 1, Down = 1 << 2, Left = 1 << 3 };
+  unsigned moveState{};
 };

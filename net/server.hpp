@@ -14,7 +14,7 @@ namespace Net
   public:
     Server(Sched &,
            const RsaPrivateKey &privateKey,
-           int port,
+           const int port,
            std::function<void(Conn *)> &&onConn);
     ~Server();
     Server(const Server &) = delete;
@@ -25,7 +25,8 @@ namespace Net
     uv_tcp_t server;
     const RsaPrivateKey *privateKey;
     std::function<void(Conn *)> onConn;
-    void onNewConn(int status);
     std::unordered_map<Conn *, std::unique_ptr<Conn>> conns;
+
+    auto onNewConn(const int status) -> void;
   };
 } // namespace Net
