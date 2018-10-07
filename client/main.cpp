@@ -38,26 +38,29 @@ int main()
 
   Sched sched;
   SimConn conn(sched, "127.0.0.1", 1025);
-  ev.keyDown = [&conn](const SDL_KeyboardEvent &key) {
+  proto::KeysState keysState{};
+  ev.keyDown = [&conn, &keysState](const SDL_KeyboardEvent &key) {
     switch (key.keysym.sym)
     {
-    case SDLK_w: conn.send(StartMove::Up); break;
-    case SDLK_s: conn.send(StartMove::Down); break;
-    case SDLK_a: conn.send(StartMove::Left); break;
-    case SDLK_d: conn.send(StartMove::Right); break;
+    case SDLK_w: keysState |= proto::KeysState::Up; break;
+    case SDLK_s: keysState |= proto::KeysState::Down; break;
+    case SDLK_a: keysState |= proto::KeysState::Left; break;
+    case SDLK_d: keysState |= proto::KeysState::Right; break;
     }
+    conn.send(keysState);
   };
-  ev.keyUp = [&conn](const SDL_KeyboardEvent &key) {
+  ev.keyUp = [&conn, &keysState](const SDL_KeyboardEvent &key) {
     switch (key.keysym.sym)
     {
-    case SDLK_w: conn.send(StopMove::Up); break;
-    case SDLK_s: conn.send(StopMove::Down); break;
-    case SDLK_a: conn.send(StopMove::Left); break;
-    case SDLK_d: conn.send(StopMove::Right); break;
+    case SDLK_w: keysState &= ~proto::KeysState::Up; break;
+    case SDLK_s: keysState &= ~proto::KeysState::Down; break;
+    case SDLK_a: keysState &= ~proto::KeysState::Left; break;
+    case SDLK_d: keysState &= ~proto::KeysState::Right; break;
     }
+    conn.send(keysState);
   };
   ev.mouseMotion = [&conn](const SDL_MouseMotionEvent &mouse) {
-    conn.send(MouseMove{mouse.xrel, mouse.yrel});
+    conn.send(proto::MouseMove{mouse.xrel, mouse.yrel});
   };
 
   sched.regIdle([&]() {
@@ -68,17 +71,20 @@ int main()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shad.use();
 
-    auto dx = 100.f * cos(conn.world.hero.dir.ang1);
-    auto dy = 100.f * sin(conn.world.hero.dir.ang1);
+    const auto &hero = conn.heroView.hero;
+    const auto d = glm::rotate(hero.dir.ang1, glm::vec3{0.0f, 0.0f, 1.0f}) *
+                   glm::rotate(hero.dir.ang2, glm::vec3{0.0f, 1.0f, 0.0f}) *
+                   glm::vec4{100.0f, 0.0f, 0.0f, 1.0f};
+
     view = glm::lookAt(
-      glm::vec3(conn.world.hero.pos.x, conn.world.hero.pos.y, conn.world.hero.pos.z + 3.0f),
-      glm::vec3(conn.world.hero.pos.x + dx,
-                conn.world.hero.pos.y + dy,
-                conn.world.hero.pos.z + 3.0f), // and looks at the origin
+      glm::vec3(hero.pos.x, hero.pos.y, hero.pos.z + 3.0f),
+      glm::vec3(hero.pos.x + d.x,
+                hero.pos.y + d.y,
+                hero.pos.z + 3.0f + d.z), // and looks at the origin
       glm::vec3(0, 0, 1));
     view.update();
 
-    for (auto &&st : conn.world.stones)
+    for (auto &&st : conn.heroView.stones)
     {
       mvp = glm::translate(glm::vec3(st.pos.x, st.pos.y, 0.0f));
       mvp.update();

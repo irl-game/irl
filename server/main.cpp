@@ -1,10 +1,8 @@
-#include "sim_server.hpp"
-#include <sched/sched.hpp>
+#include "instance.hpp"
 
 int main()
 {
-  Sched sched;
-  SimServer server(sched);
+Instance inst;
   for (;;)
-    sched.process();
+    inst.process();
 }

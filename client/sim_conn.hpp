@@ -16,7 +16,7 @@ public:
   SimConn(Sched &, const std::string &addr, int port);
   ~SimConn();
 
-  World world;
+  proto::HeroView heroView;
 
   template <typename T>
   auto send(const T &msg) -> void
@@ -27,11 +27,10 @@ public:
     proto.ser(strm, msg);
     conn->send(buff.data(), buff.size());
   };
-  auto operator()(const Version &value) -> void;
-  auto operator()(StartMove) -> void {}
-  auto operator()(StopMove) -> void {}
-  auto operator()(MouseMove) -> void {}
-  auto operator()(World &&value) -> void;
+  auto operator()(proto::Version value) -> void;
+  auto operator()(proto::KeysState) -> void {}
+  auto operator()(proto::MouseMove) -> void {}
+  auto operator()(proto::HeroView &&value) -> void;
 
 private:
   std::vector<char> buff;

@@ -17,14 +17,14 @@ SimConn::SimConn(Sched &sched, const std::string &addr, int port)
 
 SimConn::~SimConn() = default;
 
-auto SimConn::operator()(const Version &value) -> void
+auto SimConn::operator()(proto::Version value) -> void
 {
   LOG(typeid(value).name(), value.value);
   if (value.value != SimProto::version())
     LOG("Version mismatch:", value.value, "!=", SimProto::version());
 }
 
-auto SimConn::operator()(World &&value) -> void
+auto SimConn::operator()(proto::HeroView &&value) -> void
 {
-  world = value;
+  heroView = value;
 }

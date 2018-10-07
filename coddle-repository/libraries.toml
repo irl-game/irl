@@ -32,3 +32,11 @@ path="../proto"
 includes=[
   "proto/proto.hpp"
 ]
+
+[[library]]
+type="file"
+name="pi"
+path="../pi"
+includes=[
+  "pi/pi.hpp"
+]

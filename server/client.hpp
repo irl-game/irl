@@ -2,10 +2,11 @@
 #include <proto/proto.hpp>
 #include <net/conn.hpp>
 
+class World;
 class Client
 {
 public:
-  Client(Net::Conn &conn) noexcept;
+  Client(Net::Conn &conn, World &) noexcept;
 
   template <typename Msg>
   constexpr auto send(const Msg &msg) -> void
@@ -14,21 +15,20 @@ public:
     sendBuff.clear();
     OStrm strm{sendBuff};
     proto.ser(strm, msg);
-    conn->send(sendBuff.data(), sendBuff.size());
+    conn.send(sendBuff.data(), sendBuff.size());
   }
 
   void tick();
 
-  auto operator()(const Version &msg) const -> void;
-  auto operator()(StartMove msg) -> void;
-  auto operator()(StopMove msg) -> void;
-  auto operator()(MouseMove msg) -> void;
-  auto operator()(const World &) const -> void {}
+  auto operator()(proto::Version) const -> void;
+  auto operator()(const proto::HeroView &) const -> void {}
+  auto operator()(proto::KeysState) -> void;
+  auto operator()(proto::MouseMove) -> void;
 
 private:
   std::vector<char> sendBuff;
-  Net::Conn *conn{};
-  World world;
-  enum class MoveFlag: unsigned { Up = 1 << 0, Right = 1 << 1, Down = 1 << 2, Left = 1 << 3 };
-  unsigned moveState{};
+  Net::Conn &conn;
+  World &world;
+  proto::HeroView heroView;
+  proto::KeysState keysState{};
 };

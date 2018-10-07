@@ -1,88 +1,78 @@
 #include "client.hpp"
 #include <cmath>
 #include <log/log.hpp>
+#include <pi/pi.hpp>
 
-Client::Client(Net::Conn &conn) noexcept : conn(&conn)
+Client::Client(Net::Conn &conn, World &world) noexcept : conn(conn), world(world)
 {
   LOG("New client: ", this, &conn);
   for (auto i = 0; i < 100; ++i)
-    world.stones.push_back(Stone{1.0f * (rand() % 100), 1.0f * (rand() % 100)});
+    heroView.stones.push_back(proto::Stone{1.0f * (rand() % 100), 1.0f * (rand() % 100)});
   conn.onRecv = [this](const char *data, size_t sz) {
     SimProto proto;
     IStrm strm{data, data + sz};
     proto.deser(strm, *this);
   };
-  Version ver{SimProto::version()};
+  proto::Version ver{SimProto::version()};
   send(ver);
 }
 
-auto Client::operator()(const Version &msg) const -> void
+auto Client::operator()(proto::Version msg) const -> void
 {
   LOG(typeid(msg).name(), msg.value);
 }
 
-auto Client::operator()(StartMove msg) -> void
+auto Client::operator()(proto::KeysState msg) -> void
 {
-  LOG("Start move", static_cast<int>(msg));
-  switch (msg)
-  {
-  case StartMove::Up: moveState |= static_cast<unsigned>(MoveFlag::Up); break;
-  case StartMove::Right: moveState |= static_cast<unsigned>(MoveFlag::Right); break;
-  case StartMove::Down: moveState |= static_cast<unsigned>(MoveFlag::Down); break;
-  case StartMove::Left: moveState |= static_cast<unsigned>(MoveFlag::Left); break;
-  }
+  LOG("Keys State", static_cast<unsigned>(msg));
+  keysState = msg;
 }
 
-auto Client::operator()(StopMove msg) -> void
+auto Client::operator()(proto::MouseMove msg) -> void
 {
-  LOG("Stop move", static_cast<int>(msg));
-  switch (msg)
-  {
-  case StopMove::Up: moveState &= ~static_cast<unsigned>(MoveFlag::Up); break;
-  case StopMove::Right: moveState &= ~static_cast<unsigned>(MoveFlag::Right); break;
-  case StopMove::Down: moveState &= ~static_cast<unsigned>(MoveFlag::Down); break;
-  case StopMove::Left: moveState &= ~static_cast<unsigned>(MoveFlag::Left); break;
-  }
-}
-
-auto Client::operator()(MouseMove msg) -> void
-{
-  world.hero.dir.ang1 -= 0.003f * msg.x;
-  world.hero.dir.ang2 += 0.003f * msg.y;
+  LOG("Mouse move", msg.x, msg.y);
+  auto &dir = heroView.hero.dir;
+  dir.ang1 -= 0.003f * msg.x;
+  while (dir.ang1 < 0)
+    dir.ang1 += 2.0f * Pi;
+  while (dir.ang1 > 2.0f * Pi)
+    dir.ang1 -= 2.0f * Pi;
+  dir.ang2 = std::clamp(dir.ang2 + 0.003f * msg.y, -Pi / 2.0f, Pi / 2.0f);
 }
 
 void Client::tick()
 {
-  send(world);
+  send(heroView);
 
-  auto MoveSpeed = 0.4f;
+  const auto MoveSpeed = 0.4f;
+  auto &hero = heroView.hero;
 
-  if ((moveState & static_cast<unsigned>(MoveFlag::Up)) != 0)
+  if (keysState & proto::KeysState::Up)
   {
-    const auto dx = MoveSpeed * cos(world.hero.dir.ang1);
-    const auto dy = MoveSpeed * sin(world.hero.dir.ang1);
-    world.hero.pos.x += dx;
-    world.hero.pos.y += dy;
+    const auto dx = MoveSpeed * cos(hero.dir.ang1);
+    const auto dy = MoveSpeed * sin(hero.dir.ang1);
+    hero.pos.x += dx;
+    hero.pos.y += dy;
   }
-  if ((moveState & static_cast<unsigned>(MoveFlag::Right)) != 0)
+  if (keysState & proto::KeysState::Right)
   {
-    const auto dx = MoveSpeed * cos(world.hero.dir.ang1 - 3.1415926f / 2.0f);
-    const auto dy = MoveSpeed * sin(world.hero.dir.ang1 - 3.1415926f / 2.0f);
-    world.hero.pos.x += dx;
-    world.hero.pos.y += dy;
+    const auto dx = MoveSpeed * cos(hero.dir.ang1 - Pi / 2.0f);
+    const auto dy = MoveSpeed * sin(hero.dir.ang1 - Pi / 2.0f);
+    hero.pos.x += dx;
+    hero.pos.y += dy;
   }
-  if ((moveState & static_cast<unsigned>(MoveFlag::Down)) != 0)
+  if (keysState & proto::KeysState::Down)
   {
-    const auto dx = MoveSpeed * cos(world.hero.dir.ang1);
-    const auto dy = MoveSpeed * sin(world.hero.dir.ang1);
-    world.hero.pos.x -= dx;
-    world.hero.pos.y -= dy;
+    const auto dx = MoveSpeed * cos(hero.dir.ang1);
+    const auto dy = MoveSpeed * sin(hero.dir.ang1);
+    hero.pos.x -= dx;
+    hero.pos.y -= dy;
   }
-  if ((moveState & static_cast<unsigned>(MoveFlag::Left)) != 0)
+  if (keysState & proto::KeysState::Left)
   {
-    const auto dx = MoveSpeed * cos(world.hero.dir.ang1 + 3.1415926f / 2.0f);
-    const auto dy = MoveSpeed * sin(world.hero.dir.ang1 + 3.1415926f / 2.0f);
-    world.hero.pos.x += dx;
-    world.hero.pos.y += dy;
+    const auto dx = MoveSpeed * cos(hero.dir.ang1 + Pi / 2.0f);
+    const auto dy = MoveSpeed * sin(hero.dir.ang1 + Pi / 2.0f);
+    hero.pos.x += dx;
+    hero.pos.y += dy;
   }
 }

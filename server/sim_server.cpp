@@ -9,16 +9,9 @@
 #include <ser/overloaded.hpp>
 
 using namespace std::chrono_literals;
-SimServer::SimServer(Sched &sched)
-  : server(sched,
-           PrivateKey,
-           1025,
-           [this](Net::Conn *conn) {
-             auto client = std::make_unique<Client>(*conn);
-             auto clientPtr = client.get();
-             clients[clientPtr] = std::move(client);
-             conn->onDisconn = [clientPtr, this]() { clients.erase(clientPtr); };
-           }),
+SimServer::SimServer(Sched &sched, World &world)
+  : server(sched, PrivateKey, 1025, [this](Net::Conn *conn) { newConn(conn); }),
+    world(world),
     timerCanceler(sched.regTimer(
       [this]() {
         for (auto &&client : clients)
@@ -32,4 +25,12 @@ SimServer::SimServer(Sched &sched)
 SimServer::~SimServer()
 {
   timerCanceler();
+}
+
+auto SimServer::newConn(Net::Conn *conn) -> void
+{
+  auto client = std::make_unique<Client>(*conn, world);
+  auto clientPtr = client.get();
+  clients[clientPtr] = std::move(client);
+  conn->onDisconn = [clientPtr, this]() { clients.erase(clientPtr); };
 }
