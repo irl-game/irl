@@ -149,9 +149,8 @@ namespace Net
   {
     const auto hash_idx = find_hash("sha1");
     const auto prng_idx = find_prng("sprng");
-    const std::string randKey = "TODO generate random key";
     key.emplace();
-    std::copy(std::begin(randKey), std::end(randKey), std::begin(*key));
+    rng_get_bytes(key->data(), key->size(), nullptr);
     outBuff.resize(1024);
     unsigned long l1 = outBuff.size();
     const auto err = rsa_encrypt_key(key->data(),
