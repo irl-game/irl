@@ -6,25 +6,19 @@
 #include <type_traits>
 #include <vector>
 
-template <typename T>
-constexpr auto ser(OStrm &strm, const T &value) -> void;
-
-template <typename T>
-constexpr auto deser(OStrm &strm, T &value) -> void;
-
 class Ser;
 class Deser;
 
 namespace internal
 {
   template <typename T>
-  struct HasSerMethod
+  struct IsSerializableClass
   {
     template <typename, typename>
     class Checker;
 
     template <typename C>
-    static std::true_type test(Checker<C, decltype(&C::ser)> *);
+    static std::true_type test(Checker<C, decltype(C::IsSerializableClass)> *);
 
     template <typename C>
     static std::false_type test(...);
@@ -34,26 +28,7 @@ namespace internal
   };
 
   template <typename T>
-  inline constexpr bool HasSerMethodV = HasSerMethod<T>::value;
-
-  template <typename T>
-  struct HasDeserMethod
-  {
-    template <typename, typename>
-    class Checker;
-
-    template <typename C>
-    static std::true_type test(Checker<C, decltype(&C::deser)> *);
-
-    template <typename C>
-    static std::false_type test(...);
-
-    using Type = decltype(test<T>(nullptr));
-    static const bool value = std::is_same_v<std::true_type, Type>;
-  };
-
-  template <typename T>
-  inline constexpr bool HasDeserMethodV = HasDeserMethod<T>::value;
+  inline constexpr bool IsSerializableClassV = IsSerializableClass<T>::value;
 } // namespace internal
 
 class Ser
@@ -62,9 +37,9 @@ public:
   constexpr Ser(OStrm &strm) : strm(strm) {}
 
   template <typename T>
-  constexpr auto operator<<(const T &value) -> Ser &
+  constexpr auto operator()(const char *, const T &value) -> Ser &
   {
-    if constexpr (internal::HasSerMethodV<T>)
+    if constexpr (internal::IsSerializableClassV<T>)
       value.ser(*this);
     else
       serVal(value);
@@ -72,7 +47,7 @@ public:
   }
 
   template <typename T>
-  constexpr auto serVal(const T value) noexcept
+  constexpr auto serVal(const T &value) noexcept
     -> std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>>
   {
     strm.write((char *)&value, sizeof(value));
@@ -84,18 +59,18 @@ public:
   constexpr auto serVal(const std::vector<T> &value) -> void
   {
     int32_t sz = value.size();
-    *this << sz;
+    operator()("sz", sz);
     for (auto &&v : value)
-      *this << v;
+      operator()("v", v);
   }
 
   template <typename T>
   constexpr auto serVal(const std::unique_ptr<T> &value) -> void
   {
     int32_t isNull = value ? 0 : 1;
-    *this << isNull;
+    operator()("isNull", isNull);
     if (value)
-      *this << *value;
+      operator()("*value", *value);
   }
 
 private:
@@ -117,9 +92,9 @@ public:
   auto deserVal(std::string &value) noexcept -> void;
 
   template <typename T>
-  constexpr auto operator>>(T &value) -> Deser &
+  constexpr auto operator()(const char *, T &value) -> Deser &
   {
-    if constexpr (internal::HasDeserMethodV<T>)
+    if constexpr (internal::IsSerializableClassV<T>)
       value.deser(*this);
     else
       deserVal(value);
@@ -131,12 +106,12 @@ public:
   {
     value.clear();
     int32_t sz{};
-    *this >> sz;
+    operator()("sz", sz);
     value.reserve(sz);
     for (auto i = 0; i < sz; ++i)
     {
       T &v = value.emplace_back();
-      *this >> v;
+      operator()("v", v);
     }
   }
 
@@ -144,7 +119,7 @@ public:
   constexpr auto deserVal(std::unique_ptr<T> &value) -> void
   {
     int32_t isNull{};
-    *this >> isNull;
+    operator()("isNull", isNull);
     if (isNull == 1)
     {
       value = nullptr;
@@ -152,7 +127,7 @@ public:
     }
 
     value = std::make_unique<T>();
-    *this >> *value;
+    operator()("*value", *value);
   }
 
 private:
@@ -163,18 +138,18 @@ template <typename T>
 constexpr auto ser(OStrm &strm, const T &value) -> void
 {
   Ser s(strm);
-  if constexpr (internal::HasSerMethodV<T>)
+  if constexpr (internal::IsSerializableClassV<T>)
     value.ser(s);
   else
-    s << value;
+    s("value", value);
 }
 
 template <typename T>
 constexpr auto deser(IStrm &strm, T &value) -> void
 {
   Deser s(strm);
-  if constexpr (internal::HasDeserMethodV<T>)
+  if constexpr (internal::IsSerializableClassV<T>)
     value.deser(s);
   else
-    s >> value;
+    s("value", value);
 }

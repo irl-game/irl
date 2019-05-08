@@ -1,4 +1,5 @@
 #include <catch2/catch.hpp>
+#include <ser/macro.hpp>
 #include <ser/overloaded.hpp>
 #include <ser/proto.hpp>
 #include <ser/ser.hpp>
@@ -8,16 +9,18 @@ class A
 {
 public:
   int a = 0;
-  void ser(Ser &arch) const { arch << a; }
-  void deser(Deser &arch) { arch >> a; }
+#define SER_PROPERTY_LIST SER_PROPERTY(a);
+  SER_DEFINE_PROPERTIES()
+#undef SER_PROPERTY_LIST
 };
 
 class B
 {
 public:
   int a = 0;
-  void ser(Ser &arch) const { arch << a; }
-  void deser(Deser &arch) { arch >> a; }
+#define SER_PROPERTY_LIST SER_PROPERTY(a);
+  SER_DEFINE_PROPERTIES();
+#undef SER_PROPERTY_LIST
 };
 
 TEST_CASE("Simple A", "[proto]")

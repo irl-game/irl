@@ -1,4 +1,5 @@
 #include <catch2/catch.hpp>
+#include <ser/macro.hpp>
 #include <ser/ser.hpp>
 #include <sstream>
 #include <vector>
@@ -22,8 +23,9 @@ class A1
 public:
   A1(int a = 0) : a(a) {}
   int a;
-  void ser(Ser &arch) const { arch << a; }
-  void deser(Deser &arch) { arch >> a; }
+#define SER_PROPERTY_LIST SER_PROPERTY(a);
+  SER_DEFINE_PROPERTIES()
+#undef SER_PROPERY_LIST
 };
 
 TEST_CASE("Simple class", "[ser]")
@@ -44,8 +46,9 @@ class A2
 {
 public:
   std::vector<int> a;
-  void ser(Ser &arch) const { arch << a; }
-  void deser(Deser &arch) { arch >> a; }
+#define SER_PROPERTY_LIST SER_PROPERTY(a);
+  SER_DEFINE_PROPERTIES()
+#undef SER_PROPERY_LIST
 };
 
 TEST_CASE("Array", "[ser]")
@@ -67,8 +70,9 @@ class A3
 {
 public:
   std::string a;
-  void ser(Ser &arch) const { arch << a; }
-  void deser(Deser &arch) { arch >> a; }
+#define SER_PROPERTY_LIST SER_PROPERTY(a);
+  SER_DEFINE_PROPERTIES()
+#undef SER_PROPERY_LIST
 };
 
 TEST_CASE("String", "[ser]")
@@ -90,8 +94,9 @@ class A4
 {
 public:
   std::unique_ptr<std::string> a;
-  void ser(Ser &arch) const { arch << a; }
-  void deser(Deser &arch) { arch >> a; }
+#define SER_PROPERTY_LIST SER_PROPERTY(a);
+  SER_DEFINE_PROPERTIES()
+#undef SER_PROPERTY_LIST
 };
 
 TEST_CASE("Unique ptr", "[ser]")
@@ -114,8 +119,11 @@ class A5
 public:
   A4 a;
   std::string b;
-  void ser(Ser &arch) const { arch << a << b; }
-  void deser(Deser &arch) { arch >> a >> b; }
+#define SER_PROPERTY_LIST \
+  SER_PROPERTY(a);        \
+  SER_PROPERTY(b);
+  SER_DEFINE_PROPERTIES()
+#undef SER_PROPERTY_LIST
 };
 
 TEST_CASE("Nested class", "[ser]")
@@ -140,8 +148,11 @@ class A6
 public:
   std::vector<A4> a;
   std::string b;
-  void ser(Ser &arch) const { arch << a << b; }
-  void deser(Deser &arch) { arch >> a >> b; }
+#define SER_PROPERTY_LIST \
+  SER_PROPERTY(a);        \
+  SER_PROPERTY(b);
+  SER_DEFINE_PROPERTIES()
+#undef SER_PROPERTY_LIST
 };
 
 TEST_CASE("Nested vector", "[ser]")

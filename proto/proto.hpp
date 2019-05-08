@@ -1,13 +1,15 @@
 #pragma once
 #include <ser/proto.hpp>
+#include <ser/macro.hpp>
 
 namespace proto
 {
   struct Version
   {
     uint32_t value{};
-    void ser(Ser &arch) const { arch << value; }
-    void deser(Deser &arch) { arch >> value; }
+#define SER_PROPERTY_LIST SER_PROPERTY(value);
+  SER_DEFINE_PROPERTIES()
+#undef SER_PROPERTY_LIST
   };
 
   enum class KeysState : uint32_t { Up = 1 << 0, Right = 1 << 1, Down = 1 << 2, Left = 1 << 3 };
@@ -37,8 +39,11 @@ namespace proto
   {
     int32_t x{};
     int32_t y{};
-    void ser(Ser &arch) const { arch << x << y; }
-    void deser(Deser &arch) { arch >> x >> y; }
+#define SER_PROPERTY_LIST\
+    SER_PROPERTY(x); \
+    SER_PROPERTY(y);
+    SER_DEFINE_PROPERTIES()
+#undef SER_PROPERTY_LIST
   };
 
   struct Pos
@@ -46,39 +51,54 @@ namespace proto
     float x{};
     float y{};
     float z{};
-    void ser(Ser &arch) const { arch << x << y << z; }
-    void deser(Deser &arch) { arch >> x >> y >> z; }
+#define SER_PROPERTY_LIST\
+    SER_PROPERTY(x); \
+    SER_PROPERTY(y); \
+    SER_PROPERTY(z);
+    SER_DEFINE_PROPERTIES()
+#undef SER_PROPERTY_LIST
   };
 
   struct Direction
   {
     float ang1{};
     float ang2{};
-    void ser(Ser &arch) const { arch << ang1 << ang2; }
-    void deser(Deser &arch) { arch >> ang1 >> ang2; }
+#define SER_PROPERTY_LIST\
+    SER_PROPERTY(ang1); \
+    SER_PROPERTY(ang2);
+    SER_DEFINE_PROPERTIES()
+#undef SER_PROPERTY_LIST
   };
 
   struct Hero
   {
     Pos pos;
     Direction dir;
-    void ser(Ser &arch) const { arch << pos << dir; }
-    void deser(Deser &arch) { arch >> pos >> dir; }
+#define SER_PROPERTY_LIST\
+    SER_PROPERTY(pos); \
+    SER_PROPERTY(dir);
+    SER_DEFINE_PROPERTIES()
+#undef SER_PROPERTY_LIST
   };
 
   struct Stone
   {
     Pos pos;
-    void ser(Ser &arch) const { arch << pos; }
-    void deser(Deser &arch) { arch >> pos; }
+#define SER_PROPERTY_LIST\
+    SER_PROPERTY(pos);
+    SER_DEFINE_PROPERTIES()
+#undef SER_PROPERTY_LIST
   };
 
   struct HeroView
   {
     Hero hero;
     std::vector<Stone> stones;
-    void ser(Ser &arch) const { arch << hero << stones; }
-    void deser(Deser &arch) { arch >> hero >> stones; }
+#define SER_PROPERTY_LIST\
+    SER_PROPERTY(hero); \
+    SER_PROPERTY(stones);
+    SER_DEFINE_PROPERTIES()
+#undef SER_PROPERTY_LIST
   };
 } // namespace proto
 
