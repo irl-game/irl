@@ -2,7 +2,7 @@
 
 namespace proto
 {
-  class HeroView;
+  struct HeroView;
 }
 
 class Entity

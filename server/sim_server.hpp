@@ -18,7 +18,6 @@ public:
 private:
   Net::Server server;
   World &world;
-  std::unordered_map<Client *, std::unique_ptr<Client>> clients;
   Sched::TimerCanceler timerCanceler;
 
   auto newConn(Net::Conn *) -> void;

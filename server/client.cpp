@@ -1,4 +1,5 @@
 #include "client.hpp"
+#include "world.hpp"
 #include <cmath>
 #include <log/log.hpp>
 #include <pi/pi.hpp>
@@ -6,8 +7,6 @@
 Client::Client(Net::Conn &conn, World &world) noexcept : conn(conn), world(world)
 {
   LOG("New client: ", this, &conn);
-  for (auto i = 0; i < 100; ++i)
-    heroView.stones.push_back(proto::Stone{1.0f * (rand() % 100), 1.0f * (rand() % 100)});
   conn.onRecv = [this](const char *data, size_t sz) {
     SimProto proto;
     IStrm strm{data, data + sz};
@@ -42,10 +41,18 @@ auto Client::operator()(proto::MouseMove msg) -> void
 
 void Client::tick()
 {
+  auto &hero = heroView.hero;
+  heroView.stones.clear();
+  for (const auto &c : world.clients)
+    heroView.stones.push_back(
+      proto::Stone{c.first->heroView.hero.pos.x, c.first->heroView.hero.pos.y});
+  for (int x = 0; x < 4; ++x)
+    for (int y = 0; y < 4; ++y)
+      heroView.stones.push_back(
+        proto::Stone{static_cast<float>(3.0f * x), static_cast<float>(3.0f * y)});
   send(heroView);
 
   const auto MoveSpeed = 0.4f;
-  auto &hero = heroView.hero;
 
   if (keysState & proto::KeysState::Up)
   {

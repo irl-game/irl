@@ -1,35 +1,13 @@
 #pragma once
 #include "istrm.hpp"
 #include "ostrm.hpp"
+#include "is_serializable.hpp"
 #include <memory>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 class Ser;
 class Deser;
-
-namespace internal
-{
-  template <typename T>
-  struct IsSerializableClass
-  {
-    template <typename, typename>
-    class Checker;
-
-    template <typename C>
-    static std::true_type test(Checker<C, decltype(C::IsSerializableClass)> *);
-
-    template <typename C>
-    static std::false_type test(...);
-
-    using Type = decltype(test<T>(nullptr));
-    static const bool value = std::is_same_v<std::true_type, Type>;
-  };
-
-  template <typename T>
-  inline constexpr bool IsSerializableClassV = IsSerializableClass<T>::value;
-} // namespace internal
 
 class Ser
 {
@@ -37,13 +15,12 @@ public:
   constexpr Ser(OStrm &strm) : strm(strm) {}
 
   template <typename T>
-  constexpr auto operator()(const char *, const T &value) -> Ser &
+  constexpr auto operator()(const char *, const T &value) -> void
   {
     if constexpr (internal::IsSerializableClassV<T>)
       value.ser(*this);
     else
       serVal(value);
-    return *this;
   }
 
   template <typename T>
@@ -92,13 +69,12 @@ public:
   auto deserVal(std::string &value) noexcept -> void;
 
   template <typename T>
-  constexpr auto operator()(const char *, T &value) -> Deser &
+  constexpr auto operator()(const char *, T &value) -> void
   {
     if constexpr (internal::IsSerializableClassV<T>)
       value.deser(*this);
     else
       deserVal(value);
-    return *this;
   }
 
   template <typename T>

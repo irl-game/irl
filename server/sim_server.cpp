@@ -1,6 +1,7 @@
 #include "sim_server.hpp"
 #include "client.hpp"
 #include "private_key.hpp"
+#include "world.hpp"
 #include <chrono>
 #include <log/log.hpp>
 #include <net/conn.hpp>
@@ -12,13 +13,7 @@ using namespace std::chrono_literals;
 SimServer::SimServer(Sched &sched, World &world)
   : server(sched, PrivateKey, 1025, [this](Net::Conn *conn) { newConn(conn); }),
     world(world),
-    timerCanceler(sched.regTimer(
-      [this]() {
-        for (auto &&client : clients)
-          client.second->tick();
-      },
-      10ms,
-      true))
+    timerCanceler(sched.regTimer([this]() { this->world.tick(); }, 10ms, true))
 {
 }
 
@@ -31,6 +26,6 @@ auto SimServer::newConn(Net::Conn *conn) -> void
 {
   auto client = std::make_unique<Client>(*conn, world);
   auto clientPtr = client.get();
-  clients[clientPtr] = std::move(client);
-  conn->onDisconn = [clientPtr, this]() { clients.erase(clientPtr); };
+  world.clients[clientPtr] = std::move(client);
+  conn->onDisconn = [clientPtr, this]() { world.clients.erase(clientPtr); };
 }
