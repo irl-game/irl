@@ -1,6 +1,7 @@
 #pragma once
 #include "istrm.hpp"
 #include "ostrm.hpp"
+#include "schema.hpp"
 #include "ser.hpp"
 #include <array>
 #include <sstream>
@@ -25,7 +26,7 @@ namespace internal
     constexpr auto operator()(OStrm &strm) const -> void
     {
       H h{};
-      ::ser(strm, h);
+      ::schema(strm, h);
       SerAllDefCtord<T...>{}(strm);
     }
   };
@@ -37,7 +38,7 @@ namespace internal
     constexpr auto operator()(OStrm &strm) const -> void
     {
       H h{};
-      ::ser(strm, h);
+      ::schema(strm, h);
     }
   };
 
