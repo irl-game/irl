@@ -49,49 +49,36 @@ namespace internal
       }
       strm.write("[]\n", 3);
     }
-    template <>
-    constexpr auto operator()(const char *name, const std::byte &) -> void
-    {
-      strm.write(name, strlen(name));
-      strm.write(":byte\n", strlen(":byte\n"));
-    }
-    template <>
     constexpr auto operator()(const char *name, const uint16_t &) -> void
     {
       strm.write(name, strlen(name));
       strm.write(":uint16_t\n", strlen(":uint16_t\n"));
     }
-    template <>
     constexpr auto operator()(const char *name, const uint32_t &) -> void
     {
       strm.write(name, strlen(name));
       strm.write(":uint32_t\n", strlen(":uint32_t\n"));
     }
-    template <>
     constexpr auto operator()(const char *name, const uint64_t &) -> void
     {
       strm.write(name, strlen(name));
       strm.write(":uint64_t\n", strlen(":uint64_t\n"));
     }
-    template <>
     constexpr auto operator()(const char *name, const int16_t &) -> void
     {
       strm.write(name, strlen(name));
       strm.write(":int16_t\n", strlen(":int16_t\n"));
     }
-    template <>
     constexpr auto operator()(const char *name, const int32_t &) -> void
     {
       strm.write(name, strlen(name));
       strm.write(":int32_t\n", strlen(":int32_t\n"));
     }
-    template <>
     constexpr auto operator()(const char *name, const int64_t &) -> void
     {
       strm.write(name, strlen(name));
       strm.write(":int64_t\n", strlen(":int64_t\n"));
     }
-    template <>
     constexpr auto operator()(const char *name, const std::string &) -> void
     {
       strm.write(name, strlen(name));
